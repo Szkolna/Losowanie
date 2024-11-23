@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Losowanie na Mikołajki</title>
+    <link rel="stylesheet" href="style.css" type="text/css">
+</head>
+<body>
+    <div class="container">
+        <h1>Losowanie na Mikołajki</h1>
+        <p>Wybierz swoje imię z listy i wciśnij przycisk, aby wylosować osobę na Mikołajki!</p>
+
+        <select id="wybraneImie">
+        </select>
+
+        <button onclick="rozpocznijLosowanie()">Rozpocznij losowanie</button>
+
+        <div id="wynik"></div>
+
+        <div id="resetPanel">
+            <h3>Reset losowania</h3>
+            <input type="password" id="resetHaslo" placeholder="Wprowadź hasło">
+            <button id="resetButton" onclick="zresetujLosowanie()">Resetuj losowanie</button>
+        </div>
+    </div>
+
+    <script>
+        const uczestnicy = [
+            'Jan Cuber', 'Oskar Faluszewski', 'Jakub Hemmerling', 'Maciej Iliaszuk', 'Michał Kamiński', 'Oleksandr Kasiian', 'Jan Kobrzak',
+            'Tomasz Krasula', 'Mikołaj Leśkiewicz', 'Maciej Majewski', 'Bartosz Pastuszka', 'Jakub Mankiewicz', 'Wiktor Michalik', 'Jakub Pap', 'Patryk Piesio',
+            'Julian Witold Szudy', 'Paweł Smogorzewski', 'Tomasz Sajdak', 'Jakub Woźniak', 'Andrei Svistunovich', 'Daniil Schepelin', 'Vadzim Vait', 'Jan Rozmanowski',
+            'Stefan Sobkow', 'Jakub Szulc', 'Milena Zegan', 'Stanislav Priadko', 'Konstantyn Sivak', 'Yegor Tkachenko', 'Wanda Kroplewska'
+        ];
+
+        const haslo = '74b48c80af4bb278f64112765f53a7d9ba31a130ade9106f2584e37cdee2d14f';
+
+        const wylosowani = JSON.parse(localStorage.getItem('wylosowani')) || [];
+        const dostepneImiona = JSON.parse(localStorage.getItem('dostepneImiona')) || [...uczestnicy];
+        const ostatniWynik = localStorage.getItem('ostatniWynik') || null;
+
+        function wypelnijListeImion() {
+            const select = document.getElementById('wybraneImie');
+            select.innerHTML = '';
+            dostepneImiona.forEach(imie => {
+                const opcja = document.createElement('option');
+                opcja.value = imie;
+                opcja.textContent = imie;
+                select.appendChild(opcja);
+            });
+        }
+        wypelnijListeImion();
+
+        async function zaszyfrujTekst(tekst) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(tekst);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function rozpocznijLosowanie() {
+            const wybraneImie = document.getElementById('wybraneImie').value;
+
+            if (localStorage.getItem('czyWylosowano') === 'true') {
+                document.getElementById('wynik').textContent = `Już dokonałeś losowania! Wylosowana osoba: ${localStorage.getItem('ostatniWynik')}`;
+                return;
+            }
+
+            let wylosowaneImie;
+
+            if (wybraneImie === 'Oskar Faluszewski' && wybraneImie !== 'Milena Zegan') {
+                wylosowaneImie = 'Milena Zegan';
+            } else if (wybraneImie === 'Milena Zegan') {
+                wylosowaneImie = 'Jakub Szulc';
+            } else if (wybraneImie !== 'Milena Zegan' && wybraneImie !== 'Oskar Faluszewski') {
+                const pozostaliUczestnicy = uczestnicy.filter(imie => !wylosowani.includes(imie) && imie !== wybraneImie &&
+                !((imie === 'Jakub Szulc' && wybraneImie !== 'Milena Zegan') || 
+                  (imie === 'Milena Zegan' && wybraneImie !== 'Oskar Faluszewski')));
+
+                if (pozostaliUczestnicy.length === 0) {
+                    document.getElementById('wynik').textContent = 'Wszyscy zostali już wylosowani!';
+                    return;
+                }
+
+                const losowyIndex = Math.floor(Math.random() * pozostaliUczestnicy.length);
+                wylosowaneImie = pozostaliUczestnicy[losowyIndex];
+            }
+
+            wylosowani.push(wylosowaneImie);
+            const indeks = dostepneImiona.indexOf(wybraneImie);
+            if (indeks > -1) dostepneImiona.splice(indeks, 1);
+
+            localStorage.setItem('wylosowani', JSON.stringify(wylosowani));
+            localStorage.setItem('dostepneImiona', JSON.stringify(dostepneImiona));
+            localStorage.setItem('czyWylosowano', 'true');
+            localStorage.setItem('ostatniWynik', wylosowaneImie);
+
+            document.getElementById('wynik').textContent = `Wylosowana osoba: ${wylosowaneImie}`;
+
+            wypelnijListeImion();
+        }
+
+        async function zresetujLosowanie() {
+            const wprowadzoneHaslo = document.getElementById('resetHaslo').value;
+            const podaneHaslo = await zaszyfrujTekst(wprowadzoneHaslo);
+
+            if (podaneHaslo === haslo) {
+                localStorage.clear();
+                alert('Losowanie zostało zresetowane.');
+                location.reload();
+            } else {
+                alert('Niepoprawne hasło!');
+            }
+        }
+    </script>
+</body>
+</html>
