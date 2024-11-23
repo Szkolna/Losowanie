@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Losowanie na Mikołajki</title>
     <link rel="stylesheet" href="style.css" type="text/css">
+
+    <!-- Dodanie Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.9.3/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.9.3/firebase-firestore.js"></script>
 </head>
 <body>
     <div class="container">
@@ -26,6 +30,21 @@
     </div>
 
     <script>
+        // Konfiguracja Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCBk73qxxvTSsGJnGtRra7y6sm7YqrDkok",
+            authDomain: "mikolajki-8e3b3.firebaseapp.com",
+            projectId: "mikolajki-8e3b3",
+            storageBucket: "mikolajki-8e3b3.firebasestorage.app",
+            messagingSenderId: "139786940214",
+            appId: "1:139786940214:web:b2d1abaf314d7d9cc44d97",
+            measurementId: "G-H6QGJ16FPP"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(app);
+
+        // Zainicjalizuj dane
         const uczestnicy = [
             'Jan Cuber', 'Oskar Faluszewski', 'Jakub Hemmerling', 'Maciej Iliaszuk', 'Michał Kamiński', 'Oleksandr Kasiian', 'Jan Kobrzak',
             'Tomasz Krasula', 'Mikołaj Leśkiewicz', 'Maciej Majewski', 'Bartosz Pastuszka', 'Jakub Mankiewicz', 'Wiktor Michalik', 'Jakub Pap', 'Patryk Piesio',
@@ -33,12 +52,11 @@
             'Stefan Sobkow', 'Jakub Szulc', 'Milena Zegan', 'Stanislav Priadko', 'Konstantyn Sivak', 'Yegor Tkachenko', 'Wanda Kroplewska'
         ];
 
-        const haslo = '74b48c80af4bb278f64112765f53a7d9ba31a130ade9106f2584e37cdee2d14f';
+        // Przechowywanie wyników na Firebase
+        const wylosowani = [];
+        let dostepneImiona = [...uczestnicy];
 
-        const wylosowani = JSON.parse(localStorage.getItem('wylosowani')) || [];
-        const dostepneImiona = JSON.parse(localStorage.getItem('dostepneImiona')) || [...uczestnicy];
-        const ostatniWynik = localStorage.getItem('ostatniWynik') || null;
-
+        // Wypełnianie listy imion w select
         function wypelnijListeImion() {
             const select = document.getElementById('wybraneImie');
             select.innerHTML = '';
@@ -49,69 +67,70 @@
                 select.appendChild(opcja);
             });
         }
-        wypelnijListeImion();
 
-        async function zaszyfrujTekst(tekst) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(tekst);
-            const hash = await crypto.subtle.digest('SHA-256', data);
-            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        function rozpocznijLosowanie() {
+        // Losowanie
+        async function rozpocznijLosowanie() {
             const wybraneImie = document.getElementById('wybraneImie').value;
 
-            if (localStorage.getItem('czyWylosowano') === 'true') {
-                document.getElementById('wynik').textContent = `Już dokonałeś losowania! Wylosowana osoba: ${localStorage.getItem('ostatniWynik')}`;
+            if (wylosowani.includes(wybraneImie)) {
+                document.getElementById('wynik').textContent = `Już dokonałeś losowania! Wylosowana osoba: ${wylosowani[wybraneImie]}`;
                 return;
             }
 
             let wylosowaneImie;
-
-            if (wybraneImie === 'Oskar Faluszewski' && wybraneImie !== 'Milena Zegan') {
-                wylosowaneImie = 'Milena Zegan';
-            } else if (wybraneImie === 'Milena Zegan') {
-                wylosowaneImie = 'Jakub Szulc';
-            } else if (wybraneImie !== 'Milena Zegan' && wybraneImie !== 'Oskar Faluszewski') {
-                const pozostaliUczestnicy = uczestnicy.filter(imie => !wylosowani.includes(imie) && imie !== wybraneImie &&
-                !((imie === 'Jakub Szulc' && wybraneImie !== 'Milena Zegan') || 
-                  (imie === 'Milena Zegan' && wybraneImie !== 'Oskar Faluszewski')));
-
-                if (pozostaliUczestnicy.length === 0) {
-                    document.getElementById('wynik').textContent = 'Wszyscy zostali już wylosowani!';
-                    return;
-                }
-
-                const losowyIndex = Math.floor(Math.random() * pozostaliUczestnicy.length);
-                wylosowaneImie = pozostaliUczestnicy[losowyIndex];
+            
+            // Prosty algorytm losowania
+            const pozostaliUczestnicy = dostepneImiona.filter(imie => !wylosowani.includes(imie) && imie !== wybraneImie);
+            if (pozostaliUczestnicy.length === 0) {
+                document.getElementById('wynik').textContent = 'Wszyscy zostali już wylosowani!';
+                return;
             }
 
-            wylosowani.push(wylosowaneImie);
-            const indeks = dostepneImiona.indexOf(wybraneImie);
-            if (indeks > -1) dostepneImiona.splice(indeks, 1);
+            const losowyIndex = Math.floor(Math.random() * pozostaliUczestnicy.length);
+            wylosowaneImie = pozostaliUczestnicy[losowyIndex];
 
-            localStorage.setItem('wylosowani', JSON.stringify(wylosowani));
-            localStorage.setItem('dostepneImiona', JSON.stringify(dostepneImiona));
-            localStorage.setItem('czyWylosowano', 'true');
-            localStorage.setItem('ostatniWynik', wylosowaneImie);
+            // Zapisz wynik
+            wylosowani.push(wylosowaneImie);
+
+            // Zaktualizuj dostępne imiona na Firebase
+            await db.collection("uczestnicy").doc(wybraneImie).set({ wylosowane: wylosowaneImie });
 
             document.getElementById('wynik').textContent = `Wylosowana osoba: ${wylosowaneImie}`;
 
+            // Odśwież listę imion
             wypelnijListeImion();
         }
 
+        // Resetowanie
         async function zresetujLosowanie() {
             const wprowadzoneHaslo = document.getElementById('resetHaslo').value;
-            const podaneHaslo = await zaszyfrujTekst(wprowadzoneHaslo);
+            if (wprowadzoneHaslo === 'yourSecretPassword') {
+                await db.collection("uczestnicy").get().then(querySnapshot => {
+                    querySnapshot.forEach(doc => {
+                        doc.ref.delete(); // Usuń wszystkie dokumenty
+                    });
+                });
 
-            if (podaneHaslo === haslo) {
-                localStorage.clear();
                 alert('Losowanie zostało zresetowane.');
                 location.reload();
             } else {
                 alert('Niepoprawne hasło!');
             }
         }
+
+        // Pobieranie danych o uczestnikach z Firebase i wypełnianie listy
+        async function pobierzUczestnikowZFirebase() {
+            const snapshot = await db.collection('uczestnicy').get();
+            snapshot.forEach(doc => {
+                dostepneImiona = dostepneImiona.filter(imie => imie !== doc.id);
+            });
+            wypelnijListeImion();
+        }
+
+        // Na początku pobierz uczestników z Firebase
+        pobierzUczestnikowZFirebase();
+        
+
     </script>
 </body>
 </html>
