@@ -30,26 +30,45 @@
     <script>
         // Konfiguracja Firebase
         const firebaseConfig = {
-            apiKey: "TWÓJ_API_KEY",
-            authDomain: "TWÓJ_AUTH_DOMAIN",
-            projectId: "TWÓJ_PROJECT_ID",
-            storageBucket: "TWÓJ_STORAGE_BUCKET",
-            messagingSenderId: "TWÓJ_MESSAGING_SENDER_ID",
-            appId: "TWÓJ_APP_ID",
+            apiKey: "AIzaSyCBk73qxxvTSsGJnGtRra7y6sm7YqrDkok",
+            authDomain: "mikolajki-8e3b3.firebaseapp.com",
+            projectId: "mikolajki-8e3b3",
+            storageBucket: "mikolajki-8e3b3.firebasestorage.app",
+            messagingSenderId: "139786940214",
+            appId: "1:139786940214:web:b2d1abaf314d7d9cc44d97",
+            measurementId: "G-H6QGJ16FPP"
         };
-
         // Inicjalizacja Firebase
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(app);
 
-        // Lista uczestników (do inicjalizacji)
+        // Lista uczestników
         const uczestnicy = [
-            'Jan Cuber', 'Oskar Faluszewski', 'Jakub Hemmerling', 'Maciej Iliaszuk', 'Michał Kamiński', 'Oleksandr Kasiian', 
-            'Jan Kobrzak', 'Tomasz Krasula', 'Mikołaj Leśkiewicz', 'Maciej Majewski', 'Bartosz Pastuszka', 'Jakub Mankiewicz', 
-            'Wiktor Michalik', 'Jakub Pap', 'Patryk Piesio', 'Julian Witold Szudy', 'Paweł Smogorzewski', 'Tomasz Sajdak', 
-            'Jakub Woźniak', 'Andrei Svistunovich', 'Daniil Schepelin', 'Vadzim Vait', 'Jan Rozmanowski', 'Stefan Sobkow', 
+            'Jan Cuber', 'Oskar Faluszewski', 'Jakub Hemmerling', 'Maciej Iliaszuk', 'Michał Kamiński', 'Oleksandr Kasiian',
+            'Jan Kobrzak', 'Tomasz Krasula', 'Mikołaj Leśkiewicz', 'Maciej Majewski', 'Bartosz Pastuszka', 'Jakub Mankiewicz',
+            'Wiktor Michalik', 'Jakub Pap', 'Patryk Piesio', 'Julian Witold Szudy', 'Paweł Smogorzewski', 'Tomasz Sajdak',
+            'Jakub Woźniak', 'Andrei Svistunovich', 'Daniil Schepelin', 'Vadzim Vait', 'Jan Rozmanowski', 'Stefan Sobkow',
             'Jakub Szulc', 'Milena Zegan', 'Stanislav Priadko', 'Konstantyn Sivak', 'Yegor Tkachenko', 'Wanda Kroplewska'
         ];
+
+        // Funkcja inicjalizująca dane w Firestore
+        async function inicjalizujDane() {
+            try {
+                const snapshot = await db.collection('uczestnicy').get();
+                if (snapshot.empty) {
+                    const batch = db.batch();
+                    uczestnicy.forEach(imie => {
+                        const docRef = db.collection('uczestnicy').doc(imie);
+                        batch.set(docRef, { wylosowane: null });
+                    });
+                    await batch.commit();
+                    console.log("Dodano uczestników do Firestore");
+                }
+                pobierzDaneZFirebase();
+            } catch (error) {
+                console.error("Błąd podczas inicjalizacji danych:", error);
+            }
+        }
 
         // Wygeneruj listę imion w <select>
         function wypelnijListeImion(dostepneImiona) {
@@ -120,10 +139,12 @@
                 return;
             }
 
-            // Usuń wszystkie dokumenty z kolekcji `uczestnicy`
+            // Resetuj wszystkie dokumenty w kolekcji `uczestnicy`
             const snapshot = await db.collection('uczestnicy').get();
             const batch = db.batch();
-            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, { wylosowane: null });
+            });
             await batch.commit();
 
             alert('Losowanie zostało zresetowane.');
@@ -131,7 +152,7 @@
         }
 
         // Inicjalizuj dane na stronie
-        pobierzDaneZFirebase();
+        inicjalizujDane();
     </script>
 </body>
 </html>
