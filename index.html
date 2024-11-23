@@ -6,7 +6,7 @@
     <title>Losowanie na Mikołajki</title>
     <link rel="stylesheet" href="style.css" type="text/css">
 
-    <!-- Dodanie Firebase SDK -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.9.3/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.9.3/firebase-firestore.js"></script>
 </head>
@@ -15,9 +15,7 @@
         <h1>Losowanie na Mikołajki</h1>
         <p>Wybierz swoje imię z listy i wciśnij przycisk, aby wylosować osobę na Mikołajki!</p>
 
-        <select id="wybraneImie">
-        </select>
-
+        <select id="wybraneImie"></select>
         <button onclick="rozpocznijLosowanie()">Rozpocznij losowanie</button>
 
         <div id="wynik"></div>
@@ -25,52 +23,38 @@
         <div id="resetPanel">
             <h3>Reset losowania</h3>
             <input type="password" id="resetHaslo" placeholder="Wprowadź hasło">
-            <button id="resetButton" onclick="zresetujLosowanie()">Resetuj losowanie</button>
+            <button onclick="zresetujLosowanie()">Resetuj losowanie</button>
         </div>
     </div>
 
     <script>
         // Konfiguracja Firebase
         const firebaseConfig = {
-            apiKey: "AIzaSyCBk73qxxvTSsGJnGtRra7y6sm7YqrDkok",
-            authDomain: "mikolajki-8e3b3.firebaseapp.com",
-            projectId: "mikolajki-8e3b3",
-            storageBucket: "mikolajki-8e3b3.firebasestorage.app",
-            messagingSenderId: "139786940214",
-            appId: "1:139786940214:web:b2d1abaf314d7d9cc44d97",
-            measurementId: "G-H6QGJ16FPP"
+            apiKey: "TWÓJ_API_KEY",
+            authDomain: "TWÓJ_AUTH_DOMAIN",
+            projectId: "TWÓJ_PROJECT_ID",
+            storageBucket: "TWÓJ_STORAGE_BUCKET",
+            messagingSenderId: "TWÓJ_MESSAGING_SENDER_ID",
+            appId: "TWÓJ_APP_ID",
         };
 
+        // Inicjalizacja Firebase
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(app);
 
+        // Lista uczestników (do inicjalizacji)
         const uczestnicy = [
-            'Jan Cuber', 'Oskar Faluszewski', 'Jakub Hemmerling', 'Maciej Iliaszuk', 'Michał Kamiński', 'Oleksandr Kasiian', 'Jan Kobrzak',
-            'Tomasz Krasula', 'Mikołaj Leśkiewicz', 'Maciej Majewski', 'Bartosz Pastuszka', 'Jakub Mankiewicz', 'Wiktor Michalik', 'Jakub Pap', 'Patryk Piesio',
-            'Julian Witold Szudy', 'Paweł Smogorzewski', 'Tomasz Sajdak', 'Jakub Woźniak', 'Andrei Svistunovich', 'Daniil Schepelin', 'Vadzim Vait', 'Jan Rozmanowski',
-            'Stefan Sobkow', 'Jakub Szulc', 'Milena Zegan', 'Stanislav Priadko', 'Konstantyn Sivak', 'Yegor Tkachenko', 'Wanda Kroplewska'
+            'Jan Cuber', 'Oskar Faluszewski', 'Jakub Hemmerling', 'Maciej Iliaszuk', 'Michał Kamiński', 'Oleksandr Kasiian', 
+            'Jan Kobrzak', 'Tomasz Krasula', 'Mikołaj Leśkiewicz', 'Maciej Majewski', 'Bartosz Pastuszka', 'Jakub Mankiewicz', 
+            'Wiktor Michalik', 'Jakub Pap', 'Patryk Piesio', 'Julian Witold Szudy', 'Paweł Smogorzewski', 'Tomasz Sajdak', 
+            'Jakub Woźniak', 'Andrei Svistunovich', 'Daniil Schepelin', 'Vadzim Vait', 'Jan Rozmanowski', 'Stefan Sobkow', 
+            'Jakub Szulc', 'Milena Zegan', 'Stanislav Priadko', 'Konstantyn Sivak', 'Yegor Tkachenko', 'Wanda Kroplewska'
         ];
 
-        const haslo = 'af3796912365259e894b2764b7ef8b338098dcd2224adde15a66900bd6f2ee08';
-
-        let dostepneImiona = [...uczestnicy];
-        let wylosowani = [];
-
-        async function pobierzDaneZFirebase() {
-            const snapshot = await db.collection('uczestnicy').get();
-            snapshot.forEach(doc => {
-                const { wylosowane } = doc.data();
-                if (wylosowane) {
-                    wylosowani.push(doc.id);
-                    dostepneImiona = dostepneImiona.filter(imie => imie !== doc.id);
-                }
-            });
-            wypelnijListeImion();
-        }
-
-        function wypelnijListeImion() {
+        // Wygeneruj listę imion w <select>
+        function wypelnijListeImion(dostepneImiona) {
             const select = document.getElementById('wybraneImie');
-            select.innerHTML = '';
+            select.innerHTML = ''; // Czyść istniejące opcje
             dostepneImiona.forEach(imie => {
                 const opcja = document.createElement('option');
                 opcja.value = imie;
@@ -79,59 +63,74 @@
             });
         }
 
+        // Pobierz dane z Firestore
+        async function pobierzDaneZFirebase() {
+            try {
+                const snapshot = await db.collection('uczestnicy').get();
+                const dostepneImiona = uczestnicy.filter(imie => {
+                    const doc = snapshot.docs.find(d => d.id === imie);
+                    return !(doc && doc.data().wylosowane);
+                });
+                wypelnijListeImion(dostepneImiona);
+            } catch (error) {
+                console.error("Błąd podczas pobierania danych z Firebase:", error);
+            }
+        }
+
+        // Rozpocznij losowanie
         async function rozpocznijLosowanie() {
             const wybraneImie = document.getElementById('wybraneImie').value;
+            const snapshot = await db.collection('uczestnicy').get();
 
-            if (wylosowani.includes(wybraneImie)) {
-                document.getElementById('wynik').textContent = `Już dokonałeś losowania!`;
+            // Sprawdź, czy osoba już losowała
+            const doc = snapshot.docs.find(d => d.id === wybraneImie);
+            if (doc && doc.data().wylosowane) {
+                document.getElementById('wynik').textContent = `Już wylosowano: ${doc.data().wylosowane}`;
                 return;
             }
 
-            let wylosowaneImie;
-            const pozostaliUczestnicy = dostepneImiona.filter(imie => imie !== wybraneImie);
+            // Filtruj możliwych do wylosowania uczestników
+            const wylosowani = snapshot.docs.map(d => d.data().wylosowane).filter(w => w);
+            const pozostaliUczestnicy = uczestnicy.filter(imie => !wylosowani.includes(imie) && imie !== wybraneImie);
 
             if (pozostaliUczestnicy.length === 0) {
-                document.getElementById('wynik').textContent = 'Wszyscy zostali już wylosowani!';
+                document.getElementById('wynik').textContent = 'Brak dostępnych osób do wylosowania!';
                 return;
             }
 
+            // Wylosuj osobę
             const losowyIndex = Math.floor(Math.random() * pozostaliUczestnicy.length);
-            wylosowaneImie = pozostaliUczestnicy[losowyIndex];
+            const wylosowaneImie = pozostaliUczestnicy[losowyIndex];
 
             // Zapisz wynik w Firestore
             await db.collection('uczestnicy').doc(wybraneImie).set({ wylosowane: wylosowaneImie });
-
-            // Aktualizuj lokalną listę
-            wylosowani.push(wybraneImie);
-            dostepneImiona = dostepneImiona.filter(imie => imie !== wybraneImie);
-
             document.getElementById('wynik').textContent = `Wylosowana osoba: ${wylosowaneImie}`;
-            wypelnijListeImion();
+
+            // Odśwież listę
+            pobierzDaneZFirebase();
         }
 
+        // Zresetuj losowanie
         async function zresetujLosowanie() {
+            const haslo = "tajnehaslo";
             const wprowadzoneHaslo = document.getElementById('resetHaslo').value;
-            const encoder = new TextEncoder();
-            const hash = await crypto.subtle.digest('SHA-256', encoder.encode(wprowadzoneHaslo));
-            const podaneHaslo = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-            if (podaneHaslo === haslo) {
-                const snapshot = await db.collection('uczestnicy').get();
-                const batch = db.batch();
-
-                snapshot.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
-
-                await batch.commit();
-                alert('Losowanie zostało zresetowane.');
-                location.reload();
-            } else {
+            if (wprowadzoneHaslo !== haslo) {
                 alert('Niepoprawne hasło!');
+                return;
             }
+
+            // Usuń wszystkie dokumenty z kolekcji `uczestnicy`
+            const snapshot = await db.collection('uczestnicy').get();
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+
+            alert('Losowanie zostało zresetowane.');
+            pobierzDaneZFirebase();
         }
 
-        // Inicjalizacja przy ładowaniu
+        // Inicjalizuj dane na stronie
         pobierzDaneZFirebase();
     </script>
 </body>
