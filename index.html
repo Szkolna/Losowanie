@@ -32,20 +32,29 @@
     <script>
         // Konfiguracja Firebase
         const firebaseConfig = {
-        apiKey: "AIzaSyCBk73qxxvTSsGJnGtRra7y6sm7YqrDkok",
-        authDomain: "mikolajki-8e3b3.firebaseapp.com",
-        projectId: "mikolajki-8e3b3",
-        storageBucket: "mikolajki-8e3b3.firebasestorage.app",
-        messagingSenderId: "139786940214",
-        appId: "1:139786940214:web:b2d1abaf314d7d9cc44d97",
-        measurementId: "G-H6QGJ16FPP"
+            apiKey: "AIzaSyCBk73qxxvTSsGJnGtRra7y6sm7YqrDkok",
+            authDomain: "mikolajki-8e3b3.firebaseapp.com",
+            projectId: "mikolajki-8e3b3",
+            storageBucket: "mikolajki-8e3b3.firebasestorage.app",
+            messagingSenderId: "139786940214",
+            appId: "1:139786940214:web:b2d1abaf314d7d9cc44d97",
+            measurementId: "G-H6QGJ16FPP"
         };
 
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(app);
 
-        // Zainicjalizuj dane (tutaj będziemy wczytywać dane z Firebase)
-        let dostepneImiona = [];
+        // Zainicjalizuj dane
+        const uczestnicy = [
+            'Jan Cuber', 'Oskar Faluszewski', 'Jakub Hemmerling', 'Maciej Iliaszuk', 'Michał Kamiński', 'Oleksandr Kasiian', 'Jan Kobrzak',
+            'Tomasz Krasula', 'Mikołaj Leśkiewicz', 'Maciej Majewski', 'Bartosz Pastuszka', 'Jakub Mankiewicz', 'Wiktor Michalik', 'Jakub Pap', 'Patryk Piesio',
+            'Julian Witold Szudy', 'Paweł Smogorzewski', 'Tomasz Sajdak', 'Jakub Woźniak', 'Andrei Svistunovich', 'Daniil Schepelin', 'Vadzim Vait', 'Jan Rozmanowski',
+            'Stefan Sobkow', 'Jakub Szulc', 'Milena Zegan', 'Stanislav Priadko', 'Konstantyn Sivak', 'Yegor Tkachenko', 'Wanda Kroplewska'
+        ];
+
+        // Przechowywanie wyników na Firebase
+        let wylosowani = [];
+        let dostepneImiona = [...uczestnicy];
 
         // Wypełnianie listy imion w select
         function wypelnijListeImion() {
@@ -62,10 +71,16 @@
         // Losowanie
         async function rozpocznijLosowanie() {
             const wybraneImie = document.getElementById('wybraneImie').value;
-            let wylosowaneImie = 'Inny uczestnik'; // przykładowe losowanie
 
+            if (wylosowani.includes(wybraneImie)) {
+                document.getElementById('wynik').textContent = `Już dokonałeś losowania! Wylosowana osoba: ${wylosowani[wybraneImie]}`;
+                return;
+            }
+
+            let wylosowaneImie;
+            
             // Prosty algorytm losowania
-            const pozostaliUczestnicy = dostepneImiona.filter(imie => imie !== wybraneImie);
+            const pozostaliUczestnicy = dostepneImiona.filter(imie => !wylosowani.includes(imie) && imie !== wybraneImie);
             if (pozostaliUczestnicy.length === 0) {
                 document.getElementById('wynik').textContent = 'Wszyscy zostali już wylosowani!';
                 return;
@@ -73,6 +88,12 @@
 
             const losowyIndex = Math.floor(Math.random() * pozostaliUczestnicy.length);
             wylosowaneImie = pozostaliUczestnicy[losowyIndex];
+
+            // Zapisz wynik
+            wylosowani.push(wylosowaneImie);
+
+            // Zaktualizuj dostępne imiona na Firebase
+            await db.collection("uczestnicy").doc(wybraneImie).set({ wylosowane: wylosowaneImie });
 
             document.getElementById('wynik').textContent = `Wylosowana osoba: ${wylosowaneImie}`;
 
@@ -99,24 +120,16 @@
 
         // Pobieranie danych o uczestnikach z Firebase i wypełnianie listy
         async function pobierzUczestnikowZFirebase() {
-            // Pobieramy dane z Firebase
-            try {
-                const snapshot = await db.collection('uczestnicy').get();
-                console.log('Dane z Firebase:', snapshot.docs.map(doc => doc.id)); // Debugowanie: Zobacz, co mamy w Firebase
-
-                // Pobierz wszystkie dostępne imiona
-                dostepneImiona = snapshot.docs.map(doc => doc.id); // Przypisz imiona z Firebase
-                console.log('Dostępne imiona:', dostepneImiona); // Debugowanie
-
-                // Wypełnij listę imion
-                wypelnijListeImion();
-            } catch (error) {
-                console.error('Błąd podczas pobierania danych z Firebase:', error);
-            }
+            const snapshot = await db.collection('uczestnicy').get();
+            snapshot.forEach(doc => {
+                dostepneImiona = dostepneImiona.filter(imie => imie !== doc.id); // Usuwanie wylosowanych osób
+            });
+            wypelnijListeImion(); // Zaktualizuj listę
         }
 
         // Na początku pobierz uczestników z Firebase
         pobierzUczestnikowZFirebase();
+
     </script>
 </body>
 </html>
